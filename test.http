@@ -1,0 +1,42 @@
+### Test valid chirp
+POST http://localhost:8080/api/validate_chirp
+Content-Type: application/json
+
+{"body": "This is a short chirp"}
+
+### Test chirp too long
+POST http://localhost:8080/api/validate_chirp
+Content-Type: application/json
+
+{"body": "lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam quis nostrud"}
+
+### Test chirp no bad work
+POST http://localhost:8080/api/validate_chirp
+Content-Type: application/json
+
+{"body": "This is a short chirp with not a bad word"}
+
+
+### Test chirp with bad work
+POST http://localhost:8080/api/validate_chirp
+Content-Type: application/json
+
+{"body": "such a kerfuffle"}
+
+### Test chirp with bad work and an exclamation mark
+POST http://localhost:8080/api/validate_chirp
+Content-Type: application/json
+
+{"body": "such a kerfuffle!"}
+
+### Test chirp such a Fornax
+POST http://localhost:8080/api/validate_chirp
+Content-Type: application/json
+
+{"body": "such a Fornax"}
+
+### Test chirp such a SHARBERT
+POST http://localhost:8080/api/validate_chirp
+Content-Type: application/json
+
+{"body": "such a SHARBERT"}
