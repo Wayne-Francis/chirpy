@@ -2,16 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/Wayne-Francis/chirpy/internal/auth"
-	"github.com/Wayne-Francis/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
-func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	type requestBody struct {
 		Password string `json:"password"`
@@ -27,26 +25,28 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 	request := requestBody{}
 	err := decoder.Decode(&request)
 	if err != nil {
-		respondWithError(w, 500, "couldn't decode parameters")
+		respondWithError(w, 400, "Bad Request")
 		return
 	}
-	hashedPassword, err := auth.HashPassword(request.Password)
+	user, err := cfg.db.GetUserByEmail(r.Context(), request.Email)
 	if err != nil {
-		respondWithError(w, 500, "couldn't hash password")
+		respondWithError(w, 401, "Incorrect email or password")
 		return
 	}
-	user, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{Email: request.Email,
-		HashedPassword: hashedPassword})
+	match, err := auth.CheckPasswordHash(request.Password, user.HashedPassword)
 	if err != nil {
-		log.Printf("couldn't create user: %s", err)
-		respondWithError(w, 500, "couldn't create new user")
+		respondWithError(w, 401, "Incorrect email or password")
 		return
 	}
-	new_user := responseBody{
+	if !match {
+		respondWithError(w, 401, "Incorrect email or password")
+		return
+	}
+	authUser := responseBody{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     request.Email,
 	}
-	respondWithJSON(w, 201, new_user)
+	respondWithJSON(w, 200, authUser)
 }
