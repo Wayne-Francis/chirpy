@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -87,6 +88,19 @@ func TestTokenwrongsecret(t *testing.T) {
 	_, err = ValidateJWT(tokenString, "secretb")
 	if err == nil {
 		t.Fatalf("expected error for wrong secret, got nil")
+	}
+
+}
+
+func TestBearerToken(t *testing.T) {
+	headers := http.Header{}
+	headers.Set("Authorization", "Bearer abc123")
+	token, err := GetBearerToken(headers)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if token != "abc123" {
+		t.Fatalf("token is wrong, got %v", err)
 	}
 
 }
