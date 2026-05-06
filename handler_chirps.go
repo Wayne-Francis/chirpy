@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wayne-Francis/chirpy/internal/auth"
 	"github.com/Wayne-Francis/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -13,8 +14,7 @@ import (
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	type requestBody struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 	type responseBody struct {
 		ID        uuid.UUID `json:"id"`
@@ -23,11 +23,21 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		Body      string    `json:"body"`
 		UserID    uuid.UUID `json:"user_id"`
 	}
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Invalid token")
+		return
+	}
+	id, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		respondWithError(w, 401, "Invalid token")
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	request := requestBody{}
-	err := decoder.Decode(&request)
+	err = decoder.Decode(&request)
 	if err != nil {
-		respondWithError(w, 500, "couldn't decode parameters")
+		respondWithError(w, 400, "couldn't decode parameters")
 		return
 	}
 	if len(request.Body) > 140 {
@@ -37,7 +47,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 	cleanedBody := getCleanedBody(request.Body)
 	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
 		Body:   cleanedBody,
-		UserID: request.UserID,
+		UserID: id,
 	})
 	if err != nil {
 		respondWithError(w, 500, "Cannot Generate Chirp")
