@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Wayne-Francis/chirpy/internal/auth"
 	"github.com/google/uuid"
 )
 
@@ -15,9 +16,18 @@ func (cfg *apiConfig) handlerPolkaWebhook(w http.ResponseWriter, r *http.Request
 			UserID string `json:"user_id"`
 		} `json:"data"`
 	}
+	key, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Missing or invalid auth header")
+		return
+	}
+	if key != cfg.polkaKey {
+		respondWithError(w, 401, "Incorrect credentials")
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	request := requestBody{}
-	err := decoder.Decode(&request)
+	err = decoder.Decode(&request)
 	if err != nil {
 		respondWithError(w, 500, "couldn't decode parameters")
 		return
