@@ -6,22 +6,23 @@ import (
 	"time"
 
 	"github.com/Wayne-Francis/chirpy/internal/auth"
+	"github.com/Wayne-Francis/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	type requestBody struct {
-		Password         string `json:"password"`
-		Email            string `json:"email"`
-		ExpiresInSeconds *int   `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 	type responseBody struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-		Token     string    `json:"token"`
+		ID           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	request := requestBody{}
@@ -30,16 +31,8 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 400, "Bad Request")
 		return
 	}
-	var expiresIn time.Duration
-	if request.ExpiresInSeconds == nil {
-		expiresIn = time.Hour
-	} else {
-		seconds := *request.ExpiresInSeconds
-		if seconds > 3600 {
-			seconds = 3600
-		}
-		expiresIn = time.Duration(seconds) * time.Second
-	}
+	expiresIn := time.Hour
+
 	user, err := cfg.db.GetUserByEmail(r.Context(), request.Email)
 	if err != nil {
 		respondWithError(w, 401, "Incorrect email or password")
@@ -59,12 +52,23 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 500, "Could not generate Token")
 		return
 	}
+	rt := auth.MakeRefreshToken()
+	_, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token:     rt,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().UTC().Add(60 * 24 * time.Hour),
+	})
+	if err != nil {
+		respondWithError(w, 500, "Cannot Generate RefreshToken")
+		return
+	}
 	authUser := responseBody{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Token:     t,
+		ID:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Token:        t,
+		RefreshToken: rt,
 	}
 	respondWithJSON(w, 200, authUser)
 }
